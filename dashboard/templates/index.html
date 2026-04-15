@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrated Detection System — Dashboard</title>
+    <meta name="description"
+        content="Unified threat detection dashboard combining network intrusion and malware analysis">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <h1 class="logo">IDS Dashboard</h1>
+            <span class="subtitle">Integrated Malware & Network Intrusion Detection</span>
+        </div>
+        <div class="header-right">
+            <div class="stat-badge" id="badge-alerts">
+                <span class="badge-label">Alerts</span>
+                <span class="badge-value" id="total-alerts">—</span>
+            </div>
+            <div class="stat-badge" id="badge-correlations">
+                <span class="badge-label">Correlations</span>
+                <span class="badge-value" id="total-correlations">—</span>
+            </div>
+            <div class="stat-badge" id="badge-iocs">
+                <span class="badge-label">IoCs</span>
+                <span class="badge-value" id="total-iocs">—</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tab-nav">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="analyze">🔬 Analyze</button>
+        <button class="tab" data-tab="timeline">Timeline</button>
+        <button class="tab" data-tab="graph">Attack Graph</button>
+        <button class="tab" data-tab="alerts">Alerts</button>
+        <button class="tab" data-tab="iocs">IoCs</button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="content">
+
+        <!-- Analyze / Upload Tab -->
+        <section class="tab-content" id="tab-analyze">
+            <div class="grid-2">
+                <div class="card">
+                    <h2 class="card-title">🔬 Upload & Analyze File</h2>
+                    <div id="upload-zone" class="upload-zone">
+                        <div class="upload-icon">📁</div>
+                        <p class="upload-text">Drag & drop a file here, or click to select</p>
+                        <p class="upload-hint">Supports PE, ELF, scripts, and binary files (max 64MB)</p>
+                        <input type="file" id="file-input" style="display:none">
+                    </div>
+                    <div id="upload-progress" class="upload-progress" style="display:none">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <p id="upload-status">Analyzing...</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2 class="card-title">Analysis Result</h2>
+                    <div id="analysis-result" class="analysis-result">
+                        <p class="placeholder-text">Upload a file to see real-time analysis results</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card full-width" id="analysis-details-card" style="display:none">
+                <h2 class="card-title">Detailed Findings</h2>
+                <div id="analysis-details"></div>
+            </div>
+        </section>
+
+        <!-- Overview Tab -->
+        <section class="tab-content active" id="tab-overview">
+            <div class="grid-2">
+                <div class="card">
+                    <h2 class="card-title">Alerts by Source</h2>
+                    <div id="chart-source" class="chart-container"></div>
+                </div>
+                <div class="card">
+                    <h2 class="card-title">Alerts by Severity</h2>
+                    <div id="chart-severity" class="chart-container"></div>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="card">
+                    <h2 class="card-title">IoC Types Distribution</h2>
+                    <div id="chart-ioc-types" class="chart-container"></div>
+                </div>
+                <div class="card">
+                    <h2 class="card-title">Top Correlations</h2>
+                    <div id="top-correlations" class="table-container"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Timeline Tab -->
+        <section class="tab-content" id="tab-timeline">
+            <div class="card full-width">
+                <h2 class="card-title">Alert Timeline</h2>
+                <div id="timeline-chart" class="timeline-container"></div>
+            </div>
+        </section>
+
+        <!-- Attack Graph Tab -->
+        <section class="tab-content" id="tab-graph">
+            <div class="card full-width">
+                <h2 class="card-title">Attack Chain — Correlation Network</h2>
+                <div class="graph-controls">
+                    <label>Min Score: <input type="range" id="score-slider" min="0" max="100" value="30">
+                        <span id="score-value">0.30</span></label>
+                </div>
+                <div id="force-graph" class="graph-container"></div>
+            </div>
+        </section>
+
+        <!-- Alerts Tab -->
+        <section class="tab-content" id="tab-alerts">
+            <div class="card full-width">
+                <h2 class="card-title">All Alerts</h2>
+                <div class="filter-bar">
+                    <select id="filter-source">
+                        <option value="">All Sources</option>
+                        <option value="snort">Snort</option>
+                        <option value="yara">YARA</option>
+                        <option value="static">Static</option>
+                        <option value="dynamic_cape">CAPEv2</option>
+                    </select>
+                    <select id="filter-severity">
+                        <option value="">All Severities</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                    <button class="btn" onclick="loadAlerts()">Filter</button>
+                </div>
+                <div id="alerts-table" class="table-container"></div>
+            </div>
+        </section>
+
+        <!-- IoCs Tab -->
+        <section class="tab-content" id="tab-iocs">
+            <div class="card full-width">
+                <h2 class="card-title">Indicators of Compromise</h2>
+                <div class="filter-bar">
+                    <select id="filter-ioc-type">
+                        <option value="">All Types</option>
+                        <option value="ip_address">IP Address</option>
+                        <option value="domain">Domain</option>
+                        <option value="file_hash_md5">MD5 Hash</option>
+                        <option value="file_hash_sha256">SHA256 Hash</option>
+                        <option value="url">URL</option>
+                        <option value="file_path">File Path</option>
+                    </select>
+                    <button class="btn" onclick="loadIoCs()">Filter</button>
+                </div>
+                <div id="iocs-table" class="table-container"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Detail Panel (slide-in) -->
+    <div class="detail-panel" id="detail-panel">
+        <div class="detail-header">
+            <h3 id="detail-title">Details</h3>
+            <button class="close-btn" onclick="closeDetailPanel()">✕</button>
+        </div>
+        <div class="detail-body" id="detail-body"></div>
+    </div>
+    <div class="overlay" id="overlay" onclick="closeDetailPanel()"></div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+
+</html>
